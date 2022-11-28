@@ -57,11 +57,11 @@ endif;
 					 $collegamento = get_permalink();
 					?>
 
-				<div class="post-share post-share-b spc-social-colors  post-share-b3">
-				<a aria-label="Stampa" href="javascript:window.print()" title="Stampa" rel="nofollow noopener" class="cf service service-lg">
+				<div aria-label="Stampa" class="post-share post-share-b spc-social-colors  post-share-b3">
+				<a aria-label="Stampa" title="Stampa" href="javascript:window.print()" rel="nofollow noopener" class="cf service service-lg">
 				<i class="tsi tsi-print"></i><span class="label">Stampa</span></a>
 			
-				<a aria-label="Condividi via email" class="cf service s-email service-lg"  href="mailto:?subject=<?php echo $titolo; ?>&amp;body=<?php echo $collegamento; ?>"  target="_blank" rel="nofollow noopener">
+				<a aria-label="Condividi via email" class="cf service s-email service-lg"  href="mailto:?subject=<?php echo $titolo; ?>&amp;body=<?php echo $collegamento; ?>" title="Condividi via email" target="_blank" rel="nofollow noopener">
 				<i class="tsi tsi-tsi tsi-envelope-o"></i><span class="label">Email</span></a>
 				
 				<a aria-label="Condividi con WhatsApp" onclick="window.open(this.href,'targetWindow','toolbars=0,location=0,status=0,menubar=0,scrollbars=1,resizable=1,width=800,height=700,left=200,top=200');return false;" href="https://wa.me/?text=<?php echo $titolo; ?> <?php echo $collegamento; ?>" class="cf service s-whatsapp service-lg" title="Condividi con WhatsApp" target="_blank" rel="nofollow noopener">
@@ -81,23 +81,22 @@ endif;
 		
 				</div>
 				</header><!-- .post-header -->
-				<?php endif; ?>
-
+					
+					<?php endif; ?>
 				
-			
-					<div class="<?php echo esc_attr($props['content_class']); ?>">				
-						<?php Bunyad::posts()->the_content(); ?>
-						<?php get_template_part('partials/content/social-share'); ?>
+						<div class="<?php echo esc_attr($props['content_class']); ?>">				
+							<?php Bunyad::posts()->the_content(); ?>
+						</div>
+	
 					</div>
-
+					
 				</div>
 				
-			</div>
-			
-			<?php Bunyad::core()->theme_sidebar(); ?>
-			
-		</div> <!-- .row -->
-	<?php endif; ?>
-</div> <!-- .main -->
-
-<?php get_footer(); ?>
+				<?php Bunyad::core()->theme_sidebar(); ?>
+				
+			</div> <!-- .row -->
+		<?php endif; ?>
+	</div> <!-- .main -->
+	
+	<?php get_footer(); ?>
+	
