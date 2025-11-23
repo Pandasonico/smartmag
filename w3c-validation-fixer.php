@@ -4,6 +4,7 @@
  * Description: Corregge automaticamente output HTML per validazione W3C (compatibile Perfmatters)
  * Version: 3.0
  * Author: Auto-generated
+ * License: GPL v2 or later
  */
 
 if (!defined('ABSPATH')) {
@@ -33,7 +34,9 @@ function w3c_fixer_final_output() {
     }
 }
 
-// Helper: determina se saltare il processing
+/**
+ * Helper: determina se saltare il processing
+ */
 function w3c_fixer_should_skip() {
     return (
         is_admin() ||
@@ -62,7 +65,9 @@ function w3c_fixer_process_buffer($buffer) {
         'slashes' => ['before' => 0, 'after' => 0],
     ];
 
+    // ========================================
     // 1. CORREZIONE PMDELAYEDSCRIPT
+    // ========================================
     $stats['pmdelayedscript']['before'] = substr_count($buffer, 'pmdelayedscript');
 
     // DEBUG: Trova e logga esempi di pmdelayedscript trovati
@@ -90,7 +95,9 @@ function w3c_fixer_process_buffer($buffer) {
     $stats['pmdelayedscript']['after'] = substr_count($buffer, 'pmdelayedscript');
 
 
+    // ========================================
     // 2. CORREZIONE SPECULATIONRULES
+    // ========================================
     $stats['speculationrules']['before'] = substr_count($buffer, 'type="speculationrules"') +
                                             substr_count($buffer, "type='speculationrules'");
 
@@ -102,7 +109,9 @@ function w3c_fixer_process_buffer($buffer) {
                                            substr_count($buffer, "type='speculationrules'");
 
 
+    // ========================================
     // 3. RIMOZIONE SLASH AUTO-CHIUSURA
+    // ========================================
     $stats['slashes']['before'] = substr_count($buffer, '/>');
 
     // Void elements HTML5 (elementi che non devono mai avere tag di chiusura)
@@ -126,7 +135,9 @@ function w3c_fixer_process_buffer($buffer) {
     $stats['slashes']['after'] = substr_count($buffer, '/>');
 
 
+    // ========================================
     // 4. RIMOZIONE TYPE DA STYLE E SCRIPT
+    // ========================================
     // In HTML5 type="text/css" e type="text/javascript" sono ridondanti
     $buffer = preg_replace(
         '/(<style[^>]*)\s+type\s*=\s*["\']text\/css["\']\s*/i',
@@ -141,7 +152,9 @@ function w3c_fixer_process_buffer($buffer) {
     );
 
 
+    // ========================================
     // 5. PULIZIA SPAZI EXTRA
+    // ========================================
     // Rimuovi spazi multipli tra attributi
     $buffer = preg_replace('/<([a-z][a-z0-9-]*)\s{2,}/i', '<$1 ', $buffer);
 
@@ -149,7 +162,9 @@ function w3c_fixer_process_buffer($buffer) {
     $buffer = preg_replace('/\s+>/', '>', $buffer);
 
 
+    // ========================================
     // 6. AGGIUNGI COMMENTO DIAGNOSTICO
+    // ========================================
     $diagnostic = sprintf(
         "\n<!-- W3C Fixer v3.0 (Perfmatters-compatible) | pmdelayedscript:%d→%d | speculationrules:%d→%d | slashes:%d→%d -->\n",
         $stats['pmdelayedscript']['before'],
@@ -180,7 +195,9 @@ function w3c_fixer_process_buffer($buffer) {
 }
 
 /**
- * Filtri aggiuntivi per script e style caricati dinamicamente
+ * ========================================
+ * FILTRI AGGIUNTIVI PER SCRIPT E STYLE
+ * ========================================
  */
 
 // Filtro per inline script tags
