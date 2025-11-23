@@ -1,223 +1,96 @@
 <?php
 /**
- * Plugin Name: W3C Validation Fixer
- * Description: Corregge automaticamente output HTML per validazione W3C (compatibile Perfmatters)
- * Version: 3.0
+ * Plugin Name: W3C Validation Fixer (Perfmatters Compatible)
+ * Description: Corregge output HTML per validazione W3C DOPO Perfmatters
+ * Version: 3.1
  * Author: Auto-generated
- * License: GPL v2 or later
  */
 
 if (!defined('ABSPATH')) {
-    exit; // Exit if accessed directly
+    exit;
 }
 
-/**
- * STRATEGIA SEMPLICE E SICURA:
- * Cattura l'output buffer finale allo shutdown DOPO Perfmatters
- * Perfmatters usa priorità ~10000, noi usiamo PHP_INT_MAX per eseguire per ultimi
- */
-add_action('shutdown', 'w3c_fixer_final_output', PHP_INT_MAX);
+// --- FIX: Corregge Speculation Rules, attributi e tag vuoti per validazione HTML ---
 
-function w3c_fixer_final_output() {
-    if (w3c_fixer_should_skip()) {
+// IMPORTANTE: NON usare template_redirect, lascia che Perfmatters gestisca il suo buffer
+
+// Usa shutdown con priorità ALTISSIMA per elaborare DOPO Perfmatters
+add_action('shutdown', function() {
+
+    // Verifica che ci sia almeno un buffer attivo
+    if (ob_get_level() === 0) {
         return;
     }
 
-    // Cattura solo l'ultimo livello di buffer (quello di WordPress/Perfmatters)
-    if (ob_get_level() > 0) {
-        $buffer = ob_get_clean();
+    // Prendi SOLO l'ultimo buffer (quello finale dopo Perfmatters)
+    $content = ob_get_clean();
 
-        if (!empty($buffer)) {
-            // Processa e stampa
-            echo w3c_fixer_process_buffer($buffer);
-        }
+    if (empty($content)) {
+        return;
     }
-}
 
-/**
- * Helper: determina se saltare il processing
- */
-function w3c_fixer_should_skip() {
-    return (
-        is_admin() ||
-        (defined('DOING_AJAX') && DOING_AJAX) ||
-        (defined('REST_REQUEST') && REST_REQUEST) ||
-        isset($_GET['elementor-preview']) ||
-        isset($_GET['elementor_library']) ||
-        (isset($_GET['action']) && $_GET['action'] === 'elementor')
+    ## 🐛 Correzioni per Validazione W3C
+
+    // 1. Rimuovi lo slash finale dai tag vuoti auto-chiusi in HTML5.
+    $void_elements = implode('|', ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
+    $content = preg_replace(
+        '/<(' . $void_elements . ')(\s+[^>]*)?\/>/i',
+        '<$1$2>',
+        $content
     );
-}
 
-/**
- * Processa il buffer HTML e applica tutte le correzioni W3C
- */
-function w3c_fixer_process_buffer($buffer) {
+    // 2. Rimuovi anche slash da elementi SVG comuni
+    $svg_elements = implode('|', ['path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'ellipse', 'use', 'stop', 'animateTransform', 'animate', 'image', 'g']);
+    $content = preg_replace(
+        '/<(' . $svg_elements . ')(\s+[^>]*)?\/>/i',
+        '<$1$2>',
+        $content
+    );
 
-    // Verifica che il buffer contenga HTML
-    if (empty($buffer) || stripos($buffer, '<html') === false) {
-        return $buffer;
-    }
+    ## 🛠️ Correzioni Speculation Rules
 
-    // Statistiche per diagnostica
-    $stats = [
-        'pmdelayedscript' => ['before' => 0, 'after' => 0],
-        'speculationrules' => ['before' => 0, 'after' => 0],
-        'slashes' => ['before' => 0, 'after' => 0],
-    ];
+    // Correggi Speculation Rules in tutte le varianti
+    $content = preg_replace(
+        '/<script\s+type=["\']speculationrules(\+json)?["\']\s*>/i',
+        '<script type="application/json" id="speculationrules">',
+        $content
+    );
 
-    // ========================================
-    // 1. CORREZIONE PMDELAYEDSCRIPT
-    // ========================================
-    $stats['pmdelayedscript']['before'] = substr_count($buffer, 'pmdelayedscript');
+    ## 🧹 Rimozione Attributi Deprecati/Inutili
 
-    // DEBUG: Trova e logga esempi di pmdelayedscript trovati
-    if (defined('WP_DEBUG') && WP_DEBUG && $stats['pmdelayedscript']['before'] > 0) {
-        if (preg_match('/<script[^>]*pmdelayedscript[^>]*>/i', $buffer, $match)) {
-            error_log('W3C Fixer DEBUG: Found pmdelayedscript tag: ' . $match[0]);
-        }
-    }
+    // Rimuovi type="text/css" dai tag <style> (non necessario in HTML5)
+    $content = preg_replace('/<style\s+([^>]*)type=["\']text\/css["\']\s*([^>]*)>/i', '<style $1$2>', $content);
+
+    // Rimuovi type="text/javascript" dai tag <script> (non necessario in HTML5)
+    $content = preg_replace('/<script\s+([^>]*)type=["\']text\/javascript["\']\s*([^>]*)>/i', '<script $1$2>', $content);
+
+    ## 🎯 FIX PERFMATTERS: Rimuovi type="pmdelayedscript" (aggiunto da Perfmatters)
 
     // Rimuovi completamente l'attributo type="pmdelayedscript"
-    // Versione 1: Con attributo esplicito
-    $buffer = preg_replace(
+    $content = preg_replace(
         '/(<script[^>]*)\s+type\s*=\s*["\']pmdelayedscript["\']\s*/i',
         '$1 ',
-        $buffer
+        $content
     );
 
-    // Versione 2: Anche senza spazi o con variazioni
-    $buffer = preg_replace(
+    // Fallback: rimuovi anche senza catturare il tag script
+    $content = preg_replace(
         '/type\s*=\s*["\']pmdelayedscript["\']/i',
         '',
-        $buffer
+        $content
     );
 
-    $stats['pmdelayedscript']['after'] = substr_count($buffer, 'pmdelayedscript');
+    echo $content;
 
+}, PHP_INT_MAX); // PRIORITÀ MASSIMA = esegue per ultimo, DOPO Perfmatters
 
-    // ========================================
-    // 2. CORREZIONE SPECULATIONRULES
-    // ========================================
-    $stats['speculationrules']['before'] = substr_count($buffer, 'type="speculationrules"') +
-                                            substr_count($buffer, "type='speculationrules'");
-
-    // Sostituisci type="speculationrules" con type="application/json"
-    $buffer = str_replace('type="speculationrules"', 'type="application/json"', $buffer);
-    $buffer = str_replace("type='speculationrules'", "type='application/json'", $buffer);
-
-    $stats['speculationrules']['after'] = substr_count($buffer, 'type="speculationrules"') +
-                                           substr_count($buffer, "type='speculationrules'");
-
-
-    // ========================================
-    // 3. RIMOZIONE SLASH AUTO-CHIUSURA
-    // ========================================
-    $stats['slashes']['before'] = substr_count($buffer, '/>');
-
-    // Void elements HTML5 (elementi che non devono mai avere tag di chiusura)
-    $void_elements = 'area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr';
-
-    $buffer = preg_replace(
-        '/<(' . $void_elements . ')(\s+[^>]*)?\s*\/\s*>/i',
-        '<$1$2>',
-        $buffer
+// Filtro aggiuntivo per Speculation Rules
+add_filter('wp_get_inline_script_tag', function($tag) {
+    // Sostituisci entrambe le varianti
+    $tag = preg_replace(
+        '/type=["\']speculationrules(\+json)?["\']/i',
+        'type="application/json" id="speculationrules"',
+        $tag
     );
-
-    // SVG elements comuni
-    $svg_elements = 'path|circle|rect|line|polyline|polygon|ellipse|use|stop|animateTransform|animate|image|g';
-
-    $buffer = preg_replace(
-        '/<(' . $svg_elements . ')(\s+[^>]*)?\s*\/\s*>/i',
-        '<$1$2>',
-        $buffer
-    );
-
-    $stats['slashes']['after'] = substr_count($buffer, '/>');
-
-
-    // ========================================
-    // 4. RIMOZIONE TYPE DA STYLE E SCRIPT
-    // ========================================
-    // In HTML5 type="text/css" e type="text/javascript" sono ridondanti
-    $buffer = preg_replace(
-        '/(<style[^>]*)\s+type\s*=\s*["\']text\/css["\']\s*/i',
-        '$1 ',
-        $buffer
-    );
-
-    $buffer = preg_replace(
-        '/(<script[^>]*)\s+type\s*=\s*["\']text\/javascript["\']\s*/i',
-        '$1 ',
-        $buffer
-    );
-
-
-    // ========================================
-    // 5. PULIZIA SPAZI EXTRA
-    // ========================================
-    // Rimuovi spazi multipli tra attributi
-    $buffer = preg_replace('/<([a-z][a-z0-9-]*)\s{2,}/i', '<$1 ', $buffer);
-
-    // Rimuovi spazi prima della chiusura del tag
-    $buffer = preg_replace('/\s+>/', '>', $buffer);
-
-
-    // ========================================
-    // 6. AGGIUNGI COMMENTO DIAGNOSTICO
-    // ========================================
-    $diagnostic = sprintf(
-        "\n<!-- W3C Fixer v3.0 (Perfmatters-compatible) | pmdelayedscript:%d→%d | speculationrules:%d→%d | slashes:%d→%d -->\n",
-        $stats['pmdelayedscript']['before'],
-        $stats['pmdelayedscript']['after'],
-        $stats['speculationrules']['before'],
-        $stats['speculationrules']['after'],
-        $stats['slashes']['before'],
-        $stats['slashes']['after']
-    );
-
-    $buffer = str_replace('</head>', $diagnostic . '</head>', $buffer);
-
-
-    // Log per debug (se WP_DEBUG è attivo)
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log(sprintf(
-            'W3C Fixer: pmdelayedscript %d→%d | speculationrules %d→%d | slashes %d→%d',
-            $stats['pmdelayedscript']['before'],
-            $stats['pmdelayedscript']['after'],
-            $stats['speculationrules']['before'],
-            $stats['speculationrules']['after'],
-            $stats['slashes']['before'],
-            $stats['slashes']['after']
-        ));
-    }
-
-    return $buffer;
-}
-
-/**
- * ========================================
- * FILTRI AGGIUNTIVI PER SCRIPT E STYLE
- * ========================================
- */
-
-// Filtro per inline script tags
-add_filter('wp_get_inline_script_tag', 'w3c_fixer_inline_script', 999);
-function w3c_fixer_inline_script($tag) {
-    $tag = str_replace('type="speculationrules"', 'type="application/json"', $tag);
-    $tag = preg_replace('/\s+type\s*=\s*["\']text\/javascript["\']\s*/i', ' ', $tag);
     return $tag;
-}
-
-// Filtro per script enqueued
-add_filter('script_loader_tag', 'w3c_fixer_script_tag', 10, 3);
-function w3c_fixer_script_tag($tag, $handle, $src) {
-    $tag = preg_replace('/\s+type\s*=\s*["\']text\/javascript["\']\s*/i', ' ', $tag);
-    return $tag;
-}
-
-// Filtro per style enqueued
-add_filter('style_loader_tag', 'w3c_fixer_style_tag', 10, 4);
-function w3c_fixer_style_tag($tag, $handle, $href, $media) {
-    $tag = preg_replace('/\s+type\s*=\s*["\']text\/css["\']\s*/i', ' ', $tag);
-    return $tag;
-}
+}, 999);
