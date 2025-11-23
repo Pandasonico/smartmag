@@ -68,9 +68,17 @@ W3C Fixer: pmdelayedscript 5→0 | speculationrules 1→0 | slashes 58→0
 - **WordPress**: 5.0+
 - **PHP**: 7.4+
 - **Compatibile con**:
+  - **Perfmatters** (delay JS, script optimization)
   - Elementor (si disattiva automaticamente in preview)
   - Plugin di cache (WP Rocket, W3 Total Cache, ecc.)
   - Tutti i temi WordPress
+
+### 🎯 Nota su Perfmatters
+
+Questo plugin è stato progettato specificamente per funzionare **DOPO** Perfmatters:
+- Perfmatters aggiunge `type="pmdelayedscript"` durante l'ottimizzazione
+- W3C Fixer lo rimuove prima dell'invio al browser
+- **Ordine di esecuzione**: Perfmatters → W3C Fixer → Browser
 
 ### ⚠️ Nota sulla cache
 
@@ -110,6 +118,7 @@ Per problemi o domande:
 
 ## 📝 Versioni
 
+- **v3.0**: Strategia completamente ridisegnata per compatibilità Perfmatters - usa shutdown hook con priorità massima
 - **v2.1**: Rewrite completo con architettura migliorata
 - **v2.0**: Aggiunto supporto SVG e debug mode
 - **v1.0**: Versione iniziale

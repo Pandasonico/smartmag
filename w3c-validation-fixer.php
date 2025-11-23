@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: W3C Validation Fixer
- * Description: Corregge automaticamente output HTML per validazione W3C
- * Version: 2.1
+ * Description: Corregge automaticamente output HTML per validazione W3C (compatibile Perfmatters)
+ * Version: 3.0
  * Author: Auto-generated
  */
 
@@ -11,24 +11,38 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Avvia output buffering all'init con priorità alta
+ * STRATEGIA SEMPLICE E SICURA:
+ * Cattura l'output buffer finale allo shutdown DOPO Perfmatters
+ * Perfmatters usa priorità ~10000, noi usiamo PHP_INT_MAX per eseguire per ultimi
  */
-add_action('init', 'w3c_fixer_start_buffer', 1);
+add_action('shutdown', 'w3c_fixer_final_output', PHP_INT_MAX);
 
-function w3c_fixer_start_buffer() {
-
-    // Skip in admin, Elementor preview e AJAX
-    if (
-        is_admin() ||
-        (defined('DOING_AJAX') && DOING_AJAX) ||
-        isset($_GET['elementor-preview']) ||
-        isset($_GET['elementor_library']) ||
-        (isset($_GET['action']) && $_GET['action'] === 'elementor')
-    ) {
+function w3c_fixer_final_output() {
+    if (w3c_fixer_should_skip()) {
         return;
     }
 
-    ob_start('w3c_fixer_process_buffer');
+    // Cattura solo l'ultimo livello di buffer (quello di WordPress/Perfmatters)
+    if (ob_get_level() > 0) {
+        $buffer = ob_get_clean();
+
+        if (!empty($buffer)) {
+            // Processa e stampa
+            echo w3c_fixer_process_buffer($buffer);
+        }
+    }
+}
+
+// Helper: determina se saltare il processing
+function w3c_fixer_should_skip() {
+    return (
+        is_admin() ||
+        (defined('DOING_AJAX') && DOING_AJAX) ||
+        (defined('REST_REQUEST') && REST_REQUEST) ||
+        isset($_GET['elementor-preview']) ||
+        isset($_GET['elementor_library']) ||
+        (isset($_GET['action']) && $_GET['action'] === 'elementor')
+    );
 }
 
 /**
@@ -51,10 +65,25 @@ function w3c_fixer_process_buffer($buffer) {
     // 1. CORREZIONE PMDELAYEDSCRIPT
     $stats['pmdelayedscript']['before'] = substr_count($buffer, 'pmdelayedscript');
 
+    // DEBUG: Trova e logga esempi di pmdelayedscript trovati
+    if (defined('WP_DEBUG') && WP_DEBUG && $stats['pmdelayedscript']['before'] > 0) {
+        if (preg_match('/<script[^>]*pmdelayedscript[^>]*>/i', $buffer, $match)) {
+            error_log('W3C Fixer DEBUG: Found pmdelayedscript tag: ' . $match[0]);
+        }
+    }
+
     // Rimuovi completamente l'attributo type="pmdelayedscript"
+    // Versione 1: Con attributo esplicito
     $buffer = preg_replace(
         '/(<script[^>]*)\s+type\s*=\s*["\']pmdelayedscript["\']\s*/i',
         '$1 ',
+        $buffer
+    );
+
+    // Versione 2: Anche senza spazi o con variazioni
+    $buffer = preg_replace(
+        '/type\s*=\s*["\']pmdelayedscript["\']/i',
+        '',
         $buffer
     );
 
@@ -122,7 +151,7 @@ function w3c_fixer_process_buffer($buffer) {
 
     // 6. AGGIUNGI COMMENTO DIAGNOSTICO
     $diagnostic = sprintf(
-        "\n<!-- W3C Fixer v2.1 | pmdelayedscript:%d→%d | speculationrules:%d→%d | slashes:%d→%d -->\n",
+        "\n<!-- W3C Fixer v3.0 (Perfmatters-compatible) | pmdelayedscript:%d→%d | speculationrules:%d→%d | slashes:%d→%d -->\n",
         $stats['pmdelayedscript']['before'],
         $stats['pmdelayedscript']['after'],
         $stats['speculationrules']['before'],
