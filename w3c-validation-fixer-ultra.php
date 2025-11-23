@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: W3C Validation Fixer ULTRA
- * Description: Versione ultra-aggressiva con regex potenziate
- * Version: 4.1-ULTRA
+ * Description: Versione ultra-aggressiva con rimozione multi-passaggio pmdelayedscript
+ * Version: 4.2-ULTRA
  * Author: Auto-generated
  * License: GPL v2 or later
  */
@@ -31,13 +31,22 @@ add_action('template_redirect', function() {
         // CORREZIONI W3C - VERSIONE ULTRA AGGRESSIVA
         // ====================================================================
 
-        // 1. RIMUOVI type="pmdelayedscript" - VERSIONE POTENZIATA
-        // Gestisce anche data-* attributes dopo type
-        $buffer = preg_replace(
-            '/type\s*=\s*["\']pmdelayedscript["\']\s*/i',
-            '',
-            $buffer
-        );
+        // 1. RIMUOVI type="pmdelayedscript" - VERSIONE ULTRA AGGRESSIVA
+        // Perfmatters aggiunge questo attributo, dobbiamo rimuoverlo in più modi
+
+        // Passaggio 1: str_replace semplice (più veloce)
+        $buffer = str_replace('type="pmdelayedscript"', '', $buffer);
+        $buffer = str_replace("type='pmdelayedscript'", '', $buffer);
+
+        // Passaggio 2: Regex con spazi variabili
+        $buffer = preg_replace('/\s*type\s*=\s*["\']pmdelayedscript["\']\s*/i', ' ', $buffer);
+
+        // Passaggio 3: Regex più aggressiva - cattura tutto il pattern
+        $buffer = preg_replace('/(<script[^>]*)\s+type\s*=\s*["\']pmdelayedscript["\']([^>]*>)/i', '$1$2', $buffer);
+
+        // Passaggio 4: Fallback finale - rimuovi solo l'attributo ovunque appaia
+        $buffer = str_replace(' type="pmdelayedscript" ', ' ', $buffer);
+        $buffer = str_replace(" type='pmdelayedscript' ", ' ', $buffer);
 
         // 2. RIMUOVI SLASH SOLO DA HTML5 VOID ELEMENTS
         // IMPORTANTE: NON toccare gli elementi SVG! Loro DEVONO avere il trailing slash
@@ -80,7 +89,7 @@ add_action('template_redirect', function() {
         $buffer = preg_replace('/\s+>/', '>', $buffer);
 
         // Commento diagnostico
-        $diagnostic = "\n<!-- W3C Fixer ULTRA v4.1 - Attivo (section→div, NO SVG slash removal) -->\n";
+        $diagnostic = "\n<!-- W3C Fixer ULTRA v4.2 - Multi-pass pmdelayedscript removal -->\n";
         $buffer = str_replace('</head>', $diagnostic . '</head>', $buffer);
 
         return $buffer;
