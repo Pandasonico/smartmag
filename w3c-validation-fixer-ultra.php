@@ -75,13 +75,19 @@ add_action('template_redirect', function() {
             $buffer
         );
 
-        // 7. PULIZIA SPAZI EXTRA
+        // 7. CONVERTI SECTION IN DIV
+        // Converte <section> in <div> e </section> in </div>
+        $buffer = preg_replace('/<section(\s|>)/i', '<div$1', $buffer);
+        $buffer = str_replace('</section>', '</div>', $buffer);
+        $buffer = str_replace('</SECTION>', '</div>', $buffer);
+
+        // 8. PULIZIA SPAZI EXTRA
         $buffer = preg_replace('/<([a-z][a-z0-9-]*)\s{2,}/i', '<$1 ', $buffer);
         $buffer = preg_replace('/\s{2,}>/', '>', $buffer);
         $buffer = preg_replace('/\s+>/', '>', $buffer);
 
         // Commento diagnostico
-        $diagnostic = "\n<!-- W3C Fixer ULTRA v4.1 - Attivo -->\n";
+        $diagnostic = "\n<!-- W3C Fixer ULTRA v4.1 - Attivo (con section→div) -->\n";
         $buffer = str_replace('</head>', $diagnostic . '</head>', $buffer);
 
         return $buffer;
