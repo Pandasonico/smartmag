@@ -52,7 +52,7 @@ add_action('init', function() {
         $before_slash = substr_count($buffer, '/>');
 
         // Trova e logga primi 3 esempi
-        if (preg_match_all('/<(img|meta|link|br|input)[^>]*\/>/i', $buffer, $matches, PREG_SET_ORDER, 0, 0)) {
+        if (preg_match_all('/<(img|meta|link|br|input)[^>]*\/>/i', $buffer, $matches, PREG_SET_ORDER)) {
             $count = min(3, count($matches));
             for ($i = 0; $i < $count; $i++) {
                 error_log('W3C FILTER: Slash example ' . ($i+1) . ': ' . substr($matches[$i][0], 0, 150));
@@ -60,17 +60,17 @@ add_action('init', function() {
         }
 
         // Rimozione slash con flag MULTILINE e DOTALL
-        // HTML5 void elements
+        // HTML5 void elements - gestisce sia con che senza attributi
         $buffer = preg_replace(
-            '/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\s*([^>]*?)\s*\/\s*>/is',
-            '<$1 $2>',
+            '/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)((\s+[^>]*?)?\s*)\/\s*>/is',
+            '<$1$2>',
             $buffer
         );
 
-        // SVG elements
+        // SVG elements - gestisce sia con che senza attributi
         $buffer = preg_replace(
-            '/<(path|circle|rect|line|polyline|polygon|ellipse|use|stop|animateTransform|animate|image|g)\s*([^>]*?)\s*\/\s*>/is',
-            '<$1 $2>',
+            '/<(path|circle|rect|line|polyline|polygon|ellipse|use|stop|animateTransform|animate|image|g)((\s+[^>]*?)?\s*)\/\s*>/is',
+            '<$1$2>',
             $buffer
         );
 
