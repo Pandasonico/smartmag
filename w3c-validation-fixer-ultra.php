@@ -39,55 +39,48 @@ add_action('template_redirect', function() {
             $buffer
         );
 
-        // 2. RIMUOVI SLASH DA TUTTI I TAG AUTO-CHIUSI
-        // Più aggressivo: cerca qualsiasi tag con /> alla fine
+        // 2. RIMUOVI SLASH SOLO DA HTML5 VOID ELEMENTS
+        // IMPORTANTE: NON toccare gli elementi SVG! Loro DEVONO avere il trailing slash
         $buffer = preg_replace(
             '/<(link|meta|img|br|hr|input|area|base|col|embed|param|source|track|wbr)([^>]*?)\s*\/\s*>/is',
             '<$1$2>',
             $buffer
         );
 
-        // 3. RIMUOVI SLASH DA SVG ELEMENTS
-        $buffer = preg_replace(
-            '/<(path|circle|rect|line|polyline|polygon|ellipse|use|stop|animateTransform|animate|image|g)([^>]*?)\s*\/\s*>/is',
-            '<$1$2>',
-            $buffer
-        );
-
-        // 4. FIX SPECULATION RULES
+        // 3. FIX SPECULATION RULES
         $buffer = preg_replace(
             '/<script([^>]*)type\s*=\s*["\']speculationrules(\+json)?["\']/i',
             '<script$1type="application/json" id="speculationrules"',
             $buffer
         );
 
-        // 5. RIMUOVI type="text/css"
+        // 4. RIMUOVI type="text/css"
         $buffer = preg_replace(
             '/(<style[^>]*)type\s*=\s*["\']text\/css["\']\s*/i',
             '$1',
             $buffer
         );
 
-        // 6. RIMUOVI type="text/javascript"
+        // 5. RIMUOVI type="text/javascript"
         $buffer = preg_replace(
             '/(<script[^>]*)type\s*=\s*["\']text\/javascript["\']\s*/i',
             '$1',
             $buffer
         );
 
-        // 7. CONVERTI SECTION IN DIV
+        // 6. CONVERTI SECTION IN DIV
         // Converte <section> in <div> e </section> in </div>
         $buffer = preg_replace('/<section(\s|>)/i', '<div$1', $buffer);
         $buffer = str_replace('</section>', '</div>', $buffer);
         $buffer = str_replace('</SECTION>', '</div>', $buffer);
 
-        // 8. PULIZIA SPAZI EXTRA
+        // 7. PULIZIA SPAZI EXTRA
         $buffer = preg_replace('/<([a-z][a-z0-9-]*)\s{2,}/i', '<$1 ', $buffer);
         $buffer = preg_replace('/\s{2,}>/', '>', $buffer);
         $buffer = preg_replace('/\s+>/', '>', $buffer);
 
         // Commento diagnostico
-        $diagnostic = "\n<!-- W3C Fixer ULTRA v4.1 - Attivo (con section→div) -->\n";
+        $diagnostic = "\n<!-- W3C Fixer ULTRA v4.1 - Attivo (section→div, NO SVG slash removal) -->\n";
         $buffer = str_replace('</head>', $diagnostic . '</head>', $buffer);
 
         return $buffer;
