@@ -2,7 +2,7 @@
 /**
  * Plugin Name: W3C Validation Fixer ULTRA
  * Description: Rimuove trailing slash e corregge errori W3C - Versione potenziata per Perfmatters
- * Version: 6.0-ULTRA-SHUTDOWN
+ * Version: 5.0-ULTRA
  * Author: Auto-generated
  * License: GPL v2 or later
  */
@@ -128,25 +128,16 @@ function w3c_fixer_ultra_callback($buffer) {
     );
 
     // Commento diagnostico
-    $diagnostic = "\n<!-- W3C Fixer ULTRA v6.0-SHUTDOWN - Attivo (Shutdown hook, Multi-pass slash removal, Perfmatters optimized) -->\n";
+    $diagnostic = "\n<!-- W3C Fixer ULTRA v5.0 - Attivo (Multi-pass slash removal, Perfmatters optimized) -->\n";
     $buffer = str_replace('</head>', $diagnostic . '</head>', $buffer);
 
     return $buffer;
 }
 
 /**
- * STRATEGIA SHUTDOWN HOOK per catturare l'output DOPO Perfmatters
- * Usa il shutdown hook che è l'ultimo possibile in WordPress
+ * Avvia output buffering con priorità molto bassa per processare dopo Perfmatters
  */
-
-// Variabile globale per tracciare se abbiamo avviato il buffer
-global $w3c_fixer_buffer_started;
-$w3c_fixer_buffer_started = false;
-
-// Avvia output buffering il prima possibile
-add_action('init', function() {
-    global $w3c_fixer_buffer_started;
-
+add_action('template_redirect', function() {
     // Non processare admin, ajax, o rest requests
     if (
         is_admin() ||
@@ -156,38 +147,11 @@ add_action('init', function() {
         return;
     }
 
-    ob_start();
-    $w3c_fixer_buffer_started = true;
-}, 0); // Priorità 0 = avvia per primo
-
-// Processa e chiudi il buffer nell'hook shutdown (ultimo possibile)
-add_action('shutdown', function() {
-    global $w3c_fixer_buffer_started;
-
-    // Non processare admin, ajax, o rest requests
-    if (
-        is_admin() ||
-        (defined('DOING_AJAX') && DOING_AJAX) ||
-        (defined('REST_REQUEST') && REST_REQUEST) ||
-        !$w3c_fixer_buffer_started
-    ) {
-        return;
-    }
-
-    // Cattura tutto l'output e chiudi il nostro buffer
-    if (ob_get_level() > 0) {
-        $buffer = ob_get_clean();
-
-        // Processa il buffer
-        $buffer = w3c_fixer_ultra_callback($buffer);
-
-        // Output finale
-        echo $buffer;
-    }
-}, PHP_INT_MAX); // Priorità massima = esegue per ultimo tra i shutdown hooks
+    ob_start('w3c_fixer_ultra_callback');
+}, 999999); // Priorità altissima per essere sicuri di processare DOPO Perfmatters
 
 /**
- * Filtri aggiuntivi per script e style inline - PRIORITÀ MASSIMA
+ * Filtri aggiuntivi per script e style inline
  */
 add_filter('wp_get_inline_script_tag', function($tag) {
     // Fix speculation rules
@@ -197,10 +161,10 @@ add_filter('wp_get_inline_script_tag', function($tag) {
     $tag = preg_replace('/\s+type\s*=\s*["\']text\/javascript["\']/i', '', $tag);
 
     return $tag;
-}, PHP_INT_MAX);
+}, 999);
 
 /**
- * Filtro per tag script - PRIORITÀ MASSIMA
+ * Filtro per tag script
  */
 add_filter('script_loader_tag', function($tag, $handle, $src) {
     // Rimuovi type text/javascript
@@ -210,10 +174,10 @@ add_filter('script_loader_tag', function($tag, $handle, $src) {
     $tag = preg_replace('/\s+type\s*=\s*["\']pmdelayedscript["\']/i', '', $tag);
 
     return $tag;
-}, PHP_INT_MAX, 3);
+}, 999, 3);
 
 /**
- * Filtro per tag style - PRIORITÀ MASSIMA
+ * Filtro per tag style
  */
 add_filter('style_loader_tag', function($tag, $handle, $href, $media) {
     // Rimuovi type text/css
@@ -223,10 +187,10 @@ add_filter('style_loader_tag', function($tag, $handle, $href, $media) {
     $tag = preg_replace('/\s*\/\s*>/', '>', $tag);
 
     return $tag;
-}, PHP_INT_MAX, 4);
+}, 999, 4);
 
 /**
- * Filtro generico per tutto l'output HTML - PRIORITÀ MASSIMA
+ * Filtro generico per tutto l'output HTML
  */
 add_filter('the_content', function($content) {
     $void_elements = 'link|meta|img|br|hr|input|area|base|col|embed|param|source|track|wbr';
@@ -239,4 +203,4 @@ add_filter('the_content', function($content) {
     );
 
     return $content;
-}, PHP_INT_MAX);
+}, 999);
